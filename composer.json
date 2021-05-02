@@ -1,0 +1,25 @@
+{
+    "name": "iamirnet/grib2php",
+    "description": "Read Grib2 Files in PHP",
+    "keywords": ["noaa","grib2php", "grib2", "wgrib2", "weather"],
+    "homepage": "https://php.iamir.net/packages/grib2php",
+    "license": "MIT",
+    "authors": [
+        {
+            "name" : "iamirnet",
+            "email" : "me@iamir.net",
+            "homepage": "https://iamir.net",
+            "role": "Developer"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "iAmirNet\\Grib2PHP\\": "src/"
+        },
+        "files": [
+            "src/helpers.php"
+        ]
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
