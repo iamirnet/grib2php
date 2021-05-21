@@ -13,6 +13,9 @@
         }
     ],
     "autoload": {
+        "classmap": [
+            "src"
+        ],
         "psr-4": {
             "iAmirNet\\Grib2PHP\\": "src/"
         },
