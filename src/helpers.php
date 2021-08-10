@@ -5,10 +5,20 @@
  * Copyright (c) 2021. Powered by iamir.net
  */
 
+function grib2_is_windows()
+{
+    return strtolower(PHP_OS_FAMILY) == 'windows';
+}
+
+function grib2_reset_path($path)
+{
+    return grib2_is_windows() ? str_replace('/', '\\', $path) : str_replace('\\', '/', $path);
+}
+
 function grib2_path($path = null)
 {
     $path = trim($path, '/');
-    return __DIR__ . ($path ? "/$path" : '');
+    return grib2_reset_path(__DIR__ . ($path ? "/$path" : ''));
 }
 
 function grib2_clear_lon_lat($number, $ratio = 0.25) {
