@@ -25,8 +25,8 @@ class JsonParser
             ini_set('memory_limit', '-1');
             set_time_limit($time);
         }
-        $this->in = $in;
-        $this->out = $out ?: grib2_path('storage');
+        $this->in = grib2_reset_path($in);
+        $this->out = $out ? grib2_reset_path($out): grib2_path('storage');
         $this->category = $category;
         $this->parameter = $parameter;
         $this->surface = $surface;
@@ -36,7 +36,7 @@ class JsonParser
     public function _convert()
     {
         try {
-            $parameters = "";
+            $parameters = " --compact -c";
             $outfile = "convert";
             if ($this->category !== null) {
                 $parameters .= " --fc {$this->category}";
@@ -61,7 +61,7 @@ class JsonParser
             $outfile .= '.json';
             if (!is_dir($this->out))
                 mkdir($this->out, 0777, true);
-            $this->out = $this->out .'/'. $outfile;
+            $this->out = grib2_reset_path($this->out .'/'. $outfile);
             if (!file_exists($this->out))
                 exec((!grib2_is_windows() ? "sh " : '').grib2_path($this->bin) . $parameters . " -d -n -o {$this->out} {$this->in}", $out, $status);
             return (object)['status' => true, 'in' => $this->in, 'out' => $this->out];

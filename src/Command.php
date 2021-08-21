@@ -24,7 +24,7 @@ class Command
     public function __construct(string $file, $coordinates, $levels, $variables = null, string $command = null)
     {
         $this->bin = grib2_is_windows() ? grib2_path($this->bin) : 'wgrib2';
-        $this->file = $file;
+        $this->file = grib2_reset_path($file);
         $match = [];
         if ($variables) {
             $this->variables = $variables;
@@ -43,23 +43,43 @@ class Command
             $regex = '/'.implode(':', $this->regex).'/m';
             preg_match_all($regex, $result, $matches, PREG_SET_ORDER, 0);
             $data = [];
+            $keys = array_keys($this->coordinates);
             foreach ($matches as $match) {
                 foreach ($this->coordinates as $key => $coordinate) {
                     $data[$key]['coordinate'] = $coordinate;
                     $item = [];
                     $item['level'] = $match[2];
                     $levelIndex = array_search($match[2], $this->levels);
-                    $levelVariable = array_search($match[1], $this->variables);
-                    $item['value'] = $match[2 + (($key + 1) * 3)];
-                    if($levelVariable !== false) {
-                        $data[$key]['variables'][$levelVariable]['name'] = $match[1];
-                        $data[$key]['variables'][$levelVariable]['items'][$levelIndex] = $item;
-                        ksort($data[$key]['variables'][$levelVariable]['items']);
+                    if (in_array($match[1], ['UGRD', 'VGRD']) && array_search('VGRD', $this->variables) !== false) {
+                        $variableIndex = array_search('UGRD', $this->variables);
+                        $item[$match[1] == 'UGRD' ? 'u' : 'v'] = $match[2 + (((is_string($key) ? array_search($key, $keys) : $key) + 1) * 3)];
+                        if($variableIndex !== false) {
+                            $data[$key]['variables'][$variableIndex]['name'] = 'WIND';
+                            $data[$key]['variables'][$variableIndex]['items'][$levelIndex] = isset($data[$key]['variables'][$variableIndex]['items'][$levelIndex]) ?
+                                 array_merge($item, $data[$key]['variables'][$variableIndex]['items'][$levelIndex])
+                                : $item;
+                            ksort($data[$key]['variables'][$variableIndex]['items']);
+                        }
+                    }else{
+                        $variableIndex = array_search($match[1], $this->variables);
+                        $item['value'] = $match[2 + (((is_string($key) ? array_search($key, $keys) : $key) + 1) * 3)];
+                        if($variableIndex !== false) {
+                            $data[$key]['variables'][$variableIndex]['name'] = $match[1];
+                            $data[$key]['variables'][$variableIndex]['items'][$levelIndex] = $item;
+                            ksort($data[$key]['variables'][$variableIndex]['items']);
+                        }
                     }
                 }
             }
-            return (object)['status' => true, 'input' => $this->file, 'output' => $data];
+            foreach ($data as $index => $datum) {
+                foreach ($datum['variables'] as $i => $variable)
+                    $data[$index]['variables'][$i]['items'] = array_values($data[$index]['variables'][$i]['items']);
+                ksort($data[$index]['variables']);
+                $data[$index]['variables'] = array_values($data[$index]['variables']);
+            }
+            return (object)['status' => true, 'input' => $this->file, 'output' => $this->single ? $data[0] : $data];
         } catch (\Exception $e) {
+            dd('error Grib',$this->command, $e);
             return (object)['status' => false, 'message' => $e->getMessage(), 'code' => $e->getCode()];
         }
     }
@@ -77,7 +97,7 @@ class Command
             foreach ($levels as $index => $item)
                 if (is_string($item) || !is_array($item))
                     $items[] = $list[] = $item;
-                elseif(is_array($item)) {
+                elseif(is_array($item) && isset($item['items'])) {
                     $level = [];
                     foreach ($item['items'] as $key => $child) {
                         $level[] = $child;
@@ -105,14 +125,16 @@ class Command
                     if (!$this->single)
                         $this->regex[] = 'lon=([0-9.]*),lat=([0-9.]*),val=([0-9.-]*)';
                     $this->single = true;
-                    $list[$index] = $item;
+                    $list[0][$index] = $item;
                 }elseif(is_array($item)) {
                     $coordinate = [];
                     foreach ($item as $key => $child) {
-                        if (in_array($key, ['lon', 'long', 'lng', 'longitude']) || $key == 0)
+                        if (in_array($key, ['lon', 'long', 'lng', 'longitude']) || (is_int($key) && $key == 0))
                             $coordinate[] = '-lon';
-                        $coordinate[] = $child;;
-                        $list[$index][$key] = $child;
+                        if ($key != 'name') {
+                            $coordinate[] = $child;;
+                            $list[isset($item['name']) ? $item['name'] : $index][$key] = $child;
+                        }
                     }
                     $items[] = implode(' ', $coordinate);
                     $this->regex[] = 'lon=([0-9.]*),lat=([0-9.]*),val=([0-9.-]*)';
