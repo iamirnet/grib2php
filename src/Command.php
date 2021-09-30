@@ -79,7 +79,6 @@ class Command
             }
             return (object)['status' => true, 'input' => $this->file, 'output' => $this->single ? $data[0] : $data];
         } catch (\Exception $e) {
-            dd('error Grib',$this->command, $e);
             return (object)['status' => false, 'message' => $e->getMessage(), 'code' => $e->getCode()];
         }
     }
